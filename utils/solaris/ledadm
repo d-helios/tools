@@ -1,0 +1,52 @@
+#!/bin/bash
+## 
+# Simple script to led_on or led_off disk ident led on JBOD
+##
+
+function usage {
+cat <<-END >&2
+-----------------------------------
+$0 -l [ 0 | 1 ] -e [enc_number] -s [slot_number]
+OPTIONS:
+ -l - led on/off (1/0)
+ -e - enclosure number
+ -s - slot number
+ -h - help
+-----------------------------------
+END
+exit
+}
+
+function warn { 
+if ! eval "$@"; then
+    echo >&2 "WARNING: command failed \"$@\"" 
+    fi 
+} 
+
+function die { 
+    echo >&2 "$@" 
+    exit 1 
+} 
+
+while getopts l:e:s:h opt
+do
+    case $opt in
+        l) opt_led=1; led_enable=$OPTARG ;;
+        e) opt_enc=1; enc_num=$OPTARG ;;
+        s) opt_slot=1; slot_num=$OPTARG ;;
+        h|?) usage ;;
+    esac
+done
+shift $(( $OPTIND - 1 ))
+
+if (( $# )) ; then
+    usage
+fi
+
+if [[ $(( opt_led + opt_enc + opt_slot )) != 3 ]]; then
+    usage
+fi
+
+device=$(/usr/lib/fm/fmd/fmtopo | grep "ses-enclosure=${enc_num}/" | grep "bay=${slot_num}?indicator=ident")
+
+/usr/lib/fm/fmd/fmtopo -P facility.mode=uint32:0x${led_enable} $device || die "Error: Can't set facility mode"
